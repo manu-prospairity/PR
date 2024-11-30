@@ -3,11 +3,15 @@ import type { Ranking } from '@db/schema';
 
 type TimeFrame = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
-export function useLeaderboard(timeFrame: TimeFrame) {
+export function useLeaderboard(timeFrame: TimeFrame, stock?: string) {
   return useQuery<Ranking[]>({
-    queryKey: ['leaderboard', timeFrame],
+    queryKey: ['leaderboard', timeFrame, stock],
     queryFn: async () => {
-      const response = await fetch(`/api/leaderboard/${timeFrame}`);
+      const url = new URL(`/api/leaderboard/${timeFrame}`, window.location.origin);
+      if (stock) {
+        url.searchParams.set('stock', stock);
+      }
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch leaderboard');
       }

@@ -8,6 +8,33 @@ import { and, eq, gt } from "drizzle-orm";
 export function registerRoutes(app: Express) {
   setupAuth(app);
 
+  // Get leaderboard data
+  app.get("/api/leaderboard/:timeFrame", async (req, res) => {
+    try {
+      const { timeFrame } = req.params;
+      const { stock } = req.query;
+
+      const query = db
+        .select()
+        .from(rankings)
+        .where(
+          stock
+            ? and(
+                eq(rankings.timeFrame, timeFrame as any),
+                eq(rankings.symbol, stock as string)
+              )
+            : eq(rankings.timeFrame, timeFrame as any)
+        )
+        .orderBy(desc(rankings.averageAccuracy));
+
+      const leaderboardData = await query;
+      res.json(leaderboardData);
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      res.status(500).send("Error fetching leaderboard data");
+    }
+  });
+
   // Get stock predictions
   app.get("/api/predictions", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -60,6 +87,22 @@ export function registerRoutes(app: Express) {
     } catch (error) {
       console.error('Error in /api/stocks/:symbol:', error);
       res.status(500).send("Error fetching stock data");
+    }
+  });
+
+  // Get available stocks
+  app.get("/api/stocks/available", async (req, res) => {
+    try {
+      const uniqueStocks = await db
+        .select({ symbol: predictions.symbol })
+        .from(predictions)
+        .groupBy(predictions.symbol);
+      
+      const symbols = uniqueStocks.map(stock => stock.symbol);
+      res.json(symbols);
+    } catch (error) {
+      console.error('Error fetching available stocks:', error);
+      res.status(500).send("Error fetching available stocks");
     }
   });
 

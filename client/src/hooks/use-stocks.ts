@@ -19,6 +19,20 @@ interface StockData {
   historicalPrices: HistoricalPrice[];
 }
 
+export function useAvailableStocks() {
+  return useQuery<string[]>({
+    queryKey: ['available-stocks'],
+    queryFn: async () => {
+      const response = await fetch('/api/stocks/available');
+      if (!response.ok) {
+        throw new Error('Failed to fetch available stocks');
+      }
+      return response.json();
+    },
+    staleTime: 300000, // Consider data stale after 5 minutes
+  });
+}
+
 export function useStockData(symbol: string) {
   const currentPrice = useQuery<StockPrice>({
     queryKey: ['stocks', symbol, 'current'],

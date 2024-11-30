@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { StockChart } from "../components/StockChart";
 import { PredictionForm } from "../components/PredictionForm";
 import { AVAILABLE_STOCKS } from "../lib/constants";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function HomePage() {
+  const [selectedStock, setSelectedStock] = useState<string>("SPY");
+  
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
@@ -16,11 +20,20 @@ export default function HomePage() {
       </div>
 
       <div className="max-w-4xl mx-auto space-y-8">
-        <div className="space-y-8">
-          {AVAILABLE_STOCKS.map((symbol) => (
-            <StockChart key={symbol} symbol={symbol} />
-          ))}
-        </div>
+        <Select value={selectedStock} onValueChange={setSelectedStock}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Select stock" />
+          </SelectTrigger>
+          <SelectContent>
+            {AVAILABLE_STOCKS.map((stock) => (
+              <SelectItem key={stock} value={stock}>
+                {stock}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        
+        <StockChart symbol={selectedStock} />
         <PredictionForm />
       </div>
     </div>

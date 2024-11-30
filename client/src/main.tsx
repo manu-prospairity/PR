@@ -11,7 +11,7 @@ import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 
-function Router() {
+function App() {
   const { user, isLoading } = useUser();
 
   if (isLoading) {
@@ -27,19 +27,28 @@ function Router() {
   }
 
   return (
-    <Switch>
-      <Route path="/" component={LeaderboardPage} />
-      <Route path="/predict" component={HomePage} />
-      <Route>404 Page Not Found</Route>
-    </Switch>
+    <div className="app">
+      <Switch>
+        <Route path="/" component={LeaderboardPage} />
+        <Route path="/predict" component={HomePage} />
+        <Route>
+          <div className="container mx-auto py-8 text-center">
+            <h1 className="text-2xl font-bold">404 Page Not Found</h1>
+          </div>
+        </Route>
+      </Switch>
+    </div>
   );
 }
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
-    </QueryClientProvider>
-  </StrictMode>,
-);
+const rootElement = document.getElementById("root");
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <App />
+        <Toaster />
+      </QueryClientProvider>
+    </StrictMode>
+  );
+}

@@ -1,24 +1,21 @@
 import { Link } from "wouter";
-import { StockChart } from "../components/StockChart";
-import { PredictionForm } from "../components/PredictionForm";
+import { Leaderboard } from "../components/Leaderboard";
 
-export default function HomePage() {
+export default function LeaderboardPage() {
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-          Make Predictions
+          Stock Prediction Game Leaderboard
         </h1>
-        <Link href="/">
+        <Link href="/predict">
           <a className="text-blue-600 hover:text-blue-800 font-semibold">
-            View Leaderboard
+            Make Predictions
           </a>
         </Link>
       </div>
-
-      <div className="max-w-4xl mx-auto space-y-8">
-        <StockChart symbol="AAPL" />
-        <PredictionForm />
+      <div className="max-w-4xl mx-auto">
+        <Leaderboard />
       </div>
     </div>
   );

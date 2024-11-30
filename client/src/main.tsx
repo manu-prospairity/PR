@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { useUser } from "./hooks/use-user";
 import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 
 function Router() {
   const { user, isLoading } = useUser();
@@ -27,7 +28,8 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/" component={HomePage} />
+      <Route path="/" component={LeaderboardPage} />
+      <Route path="/predict" component={HomePage} />
       <Route>404 Page Not Found</Route>
     </Switch>
   );

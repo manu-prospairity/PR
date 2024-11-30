@@ -92,11 +92,20 @@ export function registerRoutes(app: Express) {
 
   // Get available stocks
   app.get("/api/stocks/available", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
     try {
+      // Only fetch stocks where predictions exist for the current user
       const uniqueStocks = await db
-        .select({ symbol: predictions.symbol })
+        .select({
+          symbol: predictions.symbol
+        })
         .from(predictions)
-        .groupBy(predictions.symbol);
+        .where(eq(predictions.userId, req.user.id))
+        .groupBy(predictions.symbol)
+        .orderBy(predictions.symbol);
       
       const symbols = uniqueStocks.map(stock => stock.symbol);
       res.json(symbols);

@@ -1,6 +1,6 @@
 import { type Express } from "express";
 import { setupAuth } from "./auth";
-import { getHistoricalPrices } from "./market";
+import { fetchStockPrice, getHistoricalPrices } from "./market";
 import { db } from "../db";
 import { predictions, stockData } from "@db/schema";
 import { and, eq, gt } from "drizzle-orm";

@@ -109,9 +109,9 @@ export async function getHistoricalPrices(symbol: string): Promise<Array<{
 export async function updateStockPrices() {
   const activePredictions = await db.select({ symbol: predictions.symbol })
     .from(predictions)
-    .where(eq(predictions.actualPrice, null));
+    .where(sql`${predictions.actualPrice} is null`);
 
-  const uniqueSymbols = [...new Set(activePredictions.map(p => p.symbol))];
+  const uniqueSymbols = Array.from(new Set(activePredictions.map(p => p.symbol)));
 
   for (const symbol of uniqueSymbols) {
     const price = await fetchStockPrice(symbol);

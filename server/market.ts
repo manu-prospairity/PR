@@ -1,11 +1,10 @@
 import { db } from "../db";
 import { stockData, predictions, rankings } from "@db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { subDays, subMonths, subYears, startOfDay } from "date-fns";
 
-const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'demo';
-
-const RATE_LIMIT_DELAY = 12000; // 12 seconds between requests (5 requests per minute)
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
+const RATE_LIMIT_DELAY = 12000; // 12 seconds between requests
 let lastRequestTime = 0;
 
 export async function fetchStockPrice(symbol: string): Promise<number | null> {
@@ -19,29 +18,23 @@ export async function fetchStockPrice(symbol: string): Promise<number | null> {
     lastRequestTime = Date.now();
 
     const response = await fetch(
-      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
+      `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
     );
     
     if (!response.ok) {
-      console.error('API response not ok:', response.status, response.statusText);
+      console.error('Polygon API response not ok:', response.status, response.statusText);
       return null;
     }
 
     const data = await response.json();
     
     // Validate response structure
-    if (!data || !data['Global Quote'] || !data['Global Quote']['05. price']) {
-      console.error('Invalid API response format:', data);
+    if (!data || !data.results || !data.results[0] || typeof data.results[0].c !== 'number') {
+      console.error('Invalid Polygon API response format:', data);
       return null;
     }
 
-    const price = parseFloat(data['Global Quote']['05. price']);
-    if (isNaN(price)) {
-      console.error('Invalid price value:', data['Global Quote']['05. price']);
-      return null;
-    }
-
-    return price;
+    return data.results[0].c; // Close price
   } catch (error) {
     console.error('Error fetching stock price:', error);
     return null;
@@ -49,7 +42,6 @@ export async function fetchStockPrice(symbol: string): Promise<number | null> {
 }
 
 export async function updateStockPrices() {
-  // Get unique symbols from predictions
   const activePredictions = await db.select({ symbol: predictions.symbol })
     .from(predictions)
     .where(eq(predictions.actualPrice, null));
@@ -96,7 +88,7 @@ export async function calculateAccuracy() {
         .update(predictions)
         .set({
           actualPrice: latestPrice.price,
-          accuracy: accuracy,
+          accuracy,
         })
         .where(eq(predictions.id, prediction.id));
     }
@@ -117,14 +109,14 @@ async function updateRankings() {
     const userStats = await db
       .select({
         userId: predictions.userId,
-        avgAccuracy: db.fn.avg<number>(predictions.accuracy),
-        count: db.fn.count(predictions.id),
+        avgAccuracy: sql<number>`avg(${predictions.accuracy})`,
+        count: sql<number>`count(${predictions.id})`,
       })
       .from(predictions)
       .where(
         and(
           gte(predictions.createdAt, timeFrame.startDate),
-          predictions.accuracy.isNotNull()
+          sql`${predictions.accuracy} is not null`
         )
       )
       .groupBy(predictions.userId);
@@ -141,8 +133,8 @@ async function updateRankings() {
         .onConflictDoUpdate({
           target: [rankings.userId, rankings.timeFrame],
           set: {
-            averageAccuracy: stat.avgAccuracy,
-            totalPredictions: stat.count,
+            averageAccuracy: stat.avgAccuracy ?? 0,
+            totalPredictions: Number(stat.count),
             updatedAt: new Date(),
           },
         });

@@ -1,0 +1,42 @@
+flowchart TD
+    subgraph Frontend[Next.js Frontend]
+        UI[User Interface]
+        Auth[Authentication]
+        Charts[Stock Charts]
+    end
+
+    subgraph Backend[Backend Services]
+        API[API Routes]
+        Cron[Scheduled Jobs]
+        Market[Market Data Service]
+        Calc[Accuracy Calculator]
+        Rank[Ranking Engine]
+    end
+
+    subgraph Storage[PostgreSQL Database]
+        Users[(Users)]
+        Predictions[(Predictions)]
+        Stocks[(Stock Data)]
+        Rankings[(Rankings)]
+    end
+
+    User-->Auth
+    Auth-->UI
+    UI-->|Submit Prediction|API
+    API-->Predictions
+    UI-->|View Rankings|API
+    API-->Rankings
+
+    Cron-->|9:30AM & 4PM|Market
+    Market-->|Store Prices|Stocks
+    Market-->Calc
+    Calc-->|Compare Predictions|Predictions
+    Calc-->Rank
+    Rank-->Rankings
+
+    Charts-->|Display|UI
+    Stocks-->Charts
+    
+    style Frontend fill:#f9f,stroke:#333
+    style Backend fill:#bbf,stroke:#333
+    style Storage fill:#bfb,stroke:#333

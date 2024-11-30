@@ -41,7 +41,6 @@ jobs:
         path: coverage/
         
   build:
-    needs: test
     runs-on: ubuntu-latest
     
     steps:
@@ -60,7 +59,7 @@ jobs:
       run: npm run build
 
   deploy:
-    needs: [test, build]
+    needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     

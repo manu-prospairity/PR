@@ -59,7 +59,7 @@ export async function getHistoricalPrices(symbol: string): Promise<Array<{
 
     // Calculate date range for 2 weeks of data
     const endDate = new Date().toISOString().split('T')[0];
-    const startDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const startDate = new Date(now - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const response = await fetch(
       `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/1/day/${startDate}/${endDate}?adjusted=true&apiKey=${POLYGON_API_KEY}`
@@ -77,7 +77,11 @@ export async function getHistoricalPrices(symbol: string): Promise<Array<{
       return null;
     }
 
-    return data.results;
+    // Polygon.io returns timestamps in milliseconds, ensure we preserve this format
+    return data.results.map(result => ({
+      ...result,
+      timestamp: result.t, // Polygon uses 't' for timestamp in ms
+    }));
   } catch (error) {
     console.error('Error fetching historical prices:', error);
     return null;

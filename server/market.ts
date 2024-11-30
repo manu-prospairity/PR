@@ -58,6 +58,16 @@ export async function fetchStockPrice(symbol: string): Promise<number | null> {
   }
 }
 
+interface PolygonAggregateResult {
+  t: number;  // timestamp
+  o: number;  // open
+  h: number;  // high
+  l: number;  // low
+  c: number;  // close
+  v: number;  // volume
+  vw: number; // volume weighted average
+}
+
 export async function getHistoricalPrices(symbol: string): Promise<Array<{
   timestamp: number;
   open: number;
@@ -96,9 +106,13 @@ export async function getHistoricalPrices(symbol: string): Promise<Array<{
     }
 
     // Polygon.io returns timestamps in milliseconds, ensure we preserve this format
-    return data.results.map(result => ({
-      ...result,
-      timestamp: result.t, // Polygon uses 't' for timestamp in ms
+    return data.results.map((result: PolygonAggregateResult) => ({
+      timestamp: result.t,
+      open: result.o,
+      high: result.h,
+      low: result.l,
+      close: result.c,
+      volume: result.v
     }));
   } catch (error) {
     console.error('Error fetching historical prices:', error);

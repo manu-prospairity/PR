@@ -76,7 +76,7 @@ export function Leaderboard() {
                 <TableRow key={ranking.id}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell>{ranking.userId}</TableCell>
-                  <TableCell>{ranking.averageAccuracy.toFixed(2)}%</TableCell>
+                  <TableCell>{Number(ranking.averageAccuracy).toFixed(2)}%</TableCell>
                   <TableCell>{ranking.totalPredictions}</TableCell>
                 </TableRow>
               ))}

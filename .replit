@@ -30,6 +30,10 @@ args = "Stock Prediction Game"
 task = "workflow.run"
 args = "Stock Prediction App"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Run Tests"
+
 [[workflows.workflow]]
 name = "Stock Prediction Game"
 author = "agent"
@@ -59,3 +63,17 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "NODE_ENV=production npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Run Tests"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx vitest run"

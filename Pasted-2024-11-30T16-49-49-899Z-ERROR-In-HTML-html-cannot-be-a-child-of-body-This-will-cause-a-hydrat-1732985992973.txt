@@ -1,0 +1,58 @@
+2024-11-30T16:49:49.899Z
+ERROR
+In HTML, <html> cannot be a child of <body>.
+This will cause a hydration error.
+
+  ...
+    <S parallelRouterKey="children" segmentPath={[...]} template={<l>} notFound={[...]}>
+      <l>
+        <R segmentPath={[...]}>
+          <E segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+            <h errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+              <w loading={null}>
+                <c notFound={[...]} forbidden={undefined} unauthorized={undefined}>
+                  <s pathname="/" notFound={[...]} forbidden={undefined} unauthorized={undefined} missingSlots={Set}>
+                    <f>
+                      <c router={{...}}>
+                        <P parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                          <link>
+                          <link>
+                          <link>
+                          <link>
+                          <html className="__classNam..." style={{...}} lang="en">
+>                           <body suppressHydrationWarning={true}>
+                              <style>
+                              <script>
+                              ...
+                                <es render={Promise}>
+                                  <RootLayout params={{}}>
+                                    <u __v0_inline={undefined} __v0_source={{fileName:"...", ...}}>
+>                                     <html lang="en">
+2024-11-30T16:49:49.966Z
+ERROR
+You are mounting a new html component when a previous one has not first unmounted. It is an error to render more than one html component at a time and attributes and children of these components will likely fail in unpredictable ways. Please only render a single instance of <html> and if you need to mount a new one, ensure any previous ones have unmounted first.
+2024-11-30T16:49:49.966Z
+ERROR
+You are mounting a new body component when a previous one has not first unmounted. It is an error to render more than one body component at a time and attributes and children of these components will likely fail in unpredictable ways. Please only render a single instance of <body> and if you need to mount a new one, ensure any previous ones have unmounted first.
+2024-11-30T16:50:01.463Z
+LOG
+Fetching data for symbol: AAPL
+2024-11-30T16:50:01.572Z
+LOG
+[SERVER]
+All environment variables: {"NODE_ENV":"development"}
+2024-11-30T16:50:01.572Z
+LOG
+[SERVER]
+POLYGON_API_KEY: undefined
+2024-11-30T16:50:01.572Z
+LOG
+[SERVER]
+API Key: Not set
+2024-11-30T16:50:01.572Z
+ERROR
+[SERVER]
+Polygon API key is not set
+2024-11-30T16:50:01.572Z
+LOG
+API response: {"error":"API key configuration error"}

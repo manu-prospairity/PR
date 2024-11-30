@@ -50,11 +50,13 @@ export function Leaderboard() {
               {stocksError ? (
                 <SelectItem value="error" disabled>Error loading stocks</SelectItem>
               ) : (
-                availableStocks?.map((stock) => (
-                  <SelectItem key={stock} value={stock}>
-                    {stock}
-                  </SelectItem>
-                ))
+                availableStocks
+                  ?.filter(stock => stock.trim() !== '')
+                  .map((stock) => (
+                    <SelectItem key={stock} value={stock}>
+                      {stock}
+                    </SelectItem>
+                  ))
               )}
             </SelectContent>
           </Select>

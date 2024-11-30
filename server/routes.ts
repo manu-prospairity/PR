@@ -92,7 +92,9 @@ export function registerRoutes(app: Express) {
         .groupBy(predictions.symbol)
         .orderBy(predictions.symbol);
       
-      const symbols = uniqueStocks.map(stock => stock.symbol);
+      const symbols = uniqueStocks
+        .map(stock => stock.symbol)
+        .filter(symbol => symbol.trim() !== '');
       res.json(symbols);
     } catch (error) {
       console.error('Error fetching available stocks:', error);

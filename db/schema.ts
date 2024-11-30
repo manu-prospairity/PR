@@ -33,6 +33,7 @@ export const stockData = pgTable("stock_data", {
 export const rankings = pgTable("rankings", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   userId: integer("user_id").references(() => users.id).notNull(),
+  symbol: text("symbol"),  // Optional field to allow for all-stocks view
   timeFrame: timeFrameEnum("time_frame").notNull(),
   averageAccuracy: decimal("average_accuracy", { precision: 5, scale: 2 }).notNull(),
   totalPredictions: integer("total_predictions").notNull(),

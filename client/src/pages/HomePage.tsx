@@ -9,10 +9,8 @@ export default function HomePage() {
         <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
           Make Predictions
         </h1>
-        <Link href="/">
-          <a className="text-blue-600 hover:text-blue-800 font-semibold">
-            View Leaderboard
-          </a>
+        <Link href="/" className="text-blue-600 hover:text-blue-800 font-semibold">
+          View Leaderboard
         </Link>
       </div>
 

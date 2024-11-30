@@ -75,22 +75,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Get stock data
-  app.get("/api/stocks/:symbol", async (req, res) => {
-    const { symbol } = req.params;
-    try {
-      const price = await fetchStockPrice(symbol);
-      if (price === null) {
-        return res.status(404).send("Stock price not found");
-      }
-      res.json({ symbol, price });
-    } catch (error) {
-      console.error('Error in /api/stocks/:symbol:', error);
-      res.status(500).send("Error fetching stock data");
-    }
-  });
-
-  // Get available stocks
+  // Get available stocks - Place this BEFORE the :symbol route
   app.get("/api/stocks/available", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
@@ -112,6 +97,21 @@ export function registerRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching available stocks:', error);
       res.status(500).send("Error fetching available stocks");
+    }
+  });
+
+  // Get stock data - Keep this AFTER the /available route
+  app.get("/api/stocks/:symbol", async (req, res) => {
+    const { symbol } = req.params;
+    try {
+      const price = await fetchStockPrice(symbol);
+      if (price === null) {
+        return res.status(404).send("Stock price not found");
+      }
+      res.json({ symbol, price });
+    } catch (error) {
+      console.error('Error in /api/stocks/:symbol:', error);
+      res.status(500).send("Error fetching stock data");
     }
   });
 

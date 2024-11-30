@@ -29,8 +29,11 @@ type TimeFrame = "daily" | "weekly" | "monthly" | "yearly";
 
 export function Leaderboard() {
   const [timeFrame, setTimeFrame] = useState<TimeFrame>("daily");
-  const [selectedStock, setSelectedStock] = useState<string>("");
-  const { data: rankings, isLoading } = useLeaderboard(timeFrame, selectedStock || undefined);
+  const [selectedStock, setSelectedStock] = useState<string>("all");
+  const { data: rankings, isLoading } = useLeaderboard(
+    timeFrame, 
+    selectedStock === "all" ? undefined : selectedStock
+  );
   const { data: availableStocks, isLoading: stocksLoading } = useAvailableStocks();
 
   return (
@@ -43,7 +46,7 @@ export function Leaderboard() {
               <SelectValue placeholder="All Stocks" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Stocks</SelectItem>
+              <SelectItem value="all">All Stocks</SelectItem>
               {availableStocks?.map((stock) => (
                 <SelectItem key={stock} value={stock}>
                   {stock}

@@ -2,8 +2,8 @@ import { type Express } from "express";
 import { setupAuth } from "./auth";
 import { fetchStockPrice, getHistoricalPrices } from "./market";
 import { db } from "../db";
-import { predictions, stockData } from "@db/schema";
-import { and, eq, gt } from "drizzle-orm";
+import { predictions, stockData, rankings } from "@db/schema";
+import { and, eq, gt, desc } from "drizzle-orm";
 
 export function registerRoutes(app: Express) {
   setupAuth(app);

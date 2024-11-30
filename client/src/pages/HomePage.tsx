@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { StockChart } from "../components/StockChart";
 import { PredictionForm } from "../components/PredictionForm";
+import { AVAILABLE_STOCKS } from "../lib/constants";
 
 export default function HomePage() {
   return (
@@ -15,7 +16,11 @@ export default function HomePage() {
       </div>
 
       <div className="max-w-4xl mx-auto space-y-8">
-        <StockChart symbol="AAPL" />
+        <div className="space-y-8">
+          {AVAILABLE_STOCKS.map((symbol) => (
+            <StockChart key={symbol} symbol={symbol} />
+          ))}
+        </div>
         <PredictionForm />
       </div>
     </div>

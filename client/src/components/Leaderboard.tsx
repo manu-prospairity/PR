@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AVAILABLE_STOCKS } from "../lib/constants";
 import {
   Card,
   CardContent,
@@ -34,30 +35,23 @@ export function Leaderboard() {
     timeFrame, 
     selectedStock === "all" ? undefined : selectedStock
   );
-  const { data: availableStocks, isLoading: stocksLoading, error: stocksError } = useAvailableStocks();
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Leaderboard</CardTitle>
         <div className="space-y-4">
-          <Select value={selectedStock} onValueChange={setSelectedStock} disabled={stocksLoading}>
+          <Select value={selectedStock} onValueChange={setSelectedStock}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder={stocksLoading ? "Loading..." : "All Stocks"} />
+              <SelectValue placeholder="All Stocks" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Stocks</SelectItem>
-              {stocksError ? (
-                <SelectItem value="error" disabled>Error loading stocks</SelectItem>
-              ) : (
-                availableStocks
-                  ?.filter(stock => stock.trim() !== '')
-                  .map((stock) => (
-                    <SelectItem key={stock} value={stock}>
-                      {stock}
-                    </SelectItem>
-                  ))
-              )}
+              {AVAILABLE_STOCKS.map((stock) => (
+                <SelectItem key={stock} value={stock}>
+                  {stock}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <div className="flex gap-2">

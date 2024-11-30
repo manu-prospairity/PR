@@ -1,5 +1,6 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { AVAILABLE_STOCKS } from "../lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,7 @@ export function PredictionForm() {
 
   const form = useForm<PredictionFormValues>({
     defaultValues: {
-      symbol: "",
+      symbol: "AAPL",  // Set AAPL as default
       predictedPrice: 0,
       targetTime: "",
     },
@@ -85,7 +86,23 @@ export function PredictionForm() {
                 <FormItem>
                   <FormLabel>Stock Symbol</FormLabel>
                   <FormControl>
-                    <Input placeholder="AAPL" {...field} />
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select stock" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {AVAILABLE_STOCKS.map((stock) => (
+                          <SelectItem key={stock} value={stock}>
+                            {stock}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

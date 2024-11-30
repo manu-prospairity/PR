@@ -2,6 +2,217 @@ import { eq, and, lte, gte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { predictions, rankings, stockData } from "@db/schema";
 import { startOfDay, subDays, subMonths, subYears } from "date-fns";
+import { setHours, setMinutes, isBefore, isAfter, isWeekend } from "date-fns";
+import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
+import { db } from "../db";
+import { predictions, stockData, rankings } from "@db/schema";
+import { sql } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
+
+const EST_TIMEZONE = 'America/New_York';
+
+function isMarketHour(date: Date): boolean {
+  const estDate = utcToZonedTime(date, EST_TIMEZONE);
+  
+  // Check if it's a weekend
+  if (isWeekend(estDate)) {
+    return false;
+  }
+
+  const hours = estDate.getHours();
+  const minutes = estDate.getMinutes();
+  const seconds = estDate.getSeconds();
+
+  // Check for US market holidays (simplified check)
+  const holidays = [
+    '2024-01-01', // New Year's Day
+    '2024-01-15', // Martin Luther King Jr. Day
+    '2024-02-19', // Presidents Day
+    '2024-03-29', // Good Friday
+    '2024-05-27', // Memorial Day
+    '2024-06-19', // Juneteenth
+    '2024-07-04', // Independence Day
+    '2024-09-02', // Labor Day
+    '2024-11-28', // Thanksgiving Day
+    '2024-12-25', // Christmas Day
+  ];
+
+  const dateStr = estDate.toISOString().split('T')[0];
+  if (holidays.includes(dateStr)) {
+    console.log(`Skipping calculations - Market holiday: ${dateStr}`);
+    return false;
+  }
+
+  // Check for exact market hours (including seconds)
+  const isMarketOpen = hours === 9 && minutes === 30 && seconds === 0;
+  const isMarketClose = hours === 16 && minutes === 0 && seconds === 0;
+
+  // Log market hour status
+  if (isMarketOpen || isMarketClose) {
+    console.log(`Market hour detected: ${isMarketOpen ? 'Opening (9:30 AM EST)' : 'Closing (4:00 PM EST)'}`);
+  }
+
+  return isMarketOpen || isMarketClose;
+}
+
+async function runMarketCalculations() {
+  const now = new Date();
+  const estDate = utcToZonedTime(now, EST_TIMEZONE);
+  
+  // Format time for logging
+  const timeStr = estDate.toLocaleString('en-US', { 
+    timeZone: EST_TIMEZONE,
+    hour12: true,
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  if (!isMarketHour(now)) {
+    // Only log every 30 minutes to avoid cluttering logs
+    if (estDate.getMinutes() % 30 === 0 && estDate.getSeconds() === 0) {
+      console.log(`Market calculations skipped at ${timeStr} - Not market hours`);
+    }
+    return;
+  }
+
+  const isMarketOpen = estDate.getHours() === 9 && estDate.getMinutes() === 30;
+  const isMarketClose = estDate.getHours() === 16 && estDate.getMinutes() === 0;
+
+  console.log(`Running market calculations at ${timeStr} - ${isMarketOpen ? 'Market Open' : 'Market Close'}`);
+  
+  try {
+    // Validate Polygon API key before proceeding
+    if (!process.env.POLYGON_API_KEY) {
+      throw new Error('Polygon API key is not configured');
+    }
+
+    // Update stock prices at both market open and close
+    console.log('Updating stock prices...');
+    await updateStockPrices();
+
+    // Calculate accuracy and update rankings at market close only
+    if (isMarketClose) {
+      console.log('Market closing - calculating prediction accuracy...');
+      await calculateAccuracy();
+      
+      console.log('Updating rankings...');
+      await updateRankings();
+    }
+
+    // Log success with timestamp
+    console.log(`Market calculations completed successfully at ${
+      estDate.toLocaleString('en-US', { 
+        timeZone: EST_TIMEZONE,
+        hour12: true,
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } (${isMarketOpen ? 'Market Open' : 'Market Close'})`);
+  } catch (error) {
+    console.error('Error in market calculations:', {
+      timestamp: estDate.toISOString(),
+      marketTime: isMarketOpen ? 'open' : 'close',
+      errorType: error instanceof Error ? error.name : 'Unknown error',
+      errorMessage: error instanceof Error ? error.message : 'No message available',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+
+    // Attempt recovery for specific error cases
+    if (error instanceof Error && error.message.includes('Rate limit exceeded')) {
+      console.log('Rate limit exceeded, will retry on next scheduled run');
+    }
+  }
+}
+
+// Run calculations every minute to ensure we hit market hours efficiently
+const CALCULATION_INTERVAL = 60 * 1000; // 1 minute
+console.log('Starting market calculations scheduler');
+
+interface MarketTime {
+  hour: number;
+  minute: number;
+  label: string;
+}
+
+const MARKET_TIMES: MarketTime[] = [
+  { hour: 9, minute: 30, label: 'Market Open' },
+  { hour: 16, minute: 0, label: 'Market Close' }
+];
+
+// Keep track of the last run time and market session
+let lastRunTime: Date | null = null;
+let currentMarketSession: string | null = null;
+
+async function scheduleMarketCalculations() {
+  try {
+    const now = new Date();
+    const estDate = utcToZonedTime(now, EST_TIMEZONE);
+    
+    // Format current time for logging
+    const timeStr = estDate.toLocaleString('en-US', {
+      timeZone: EST_TIMEZONE,
+      hour12: true,
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // Identify current market session
+    const currentTime = estDate.getHours() * 60 + estDate.getMinutes();
+    const marketOpen = 9 * 60 + 30;  // 9:30 AM
+    const marketClose = 16 * 60;     // 4:00 PM
+    
+    let marketSession = null;
+    if (currentTime === marketOpen) marketSession = 'MARKET_OPEN';
+    if (currentTime === marketClose) marketSession = 'MARKET_CLOSE';
+
+    // Only run if we're at a market time and haven't run for this session
+    if (marketSession && marketSession !== currentMarketSession) {
+      console.log(`Market calculator triggered - ${timeStr} (${marketSession})`);
+      await runMarketCalculations();
+      lastRunTime = now;
+      currentMarketSession = marketSession;
+      
+      // Reset market session at the end of the day
+      if (marketSession === 'MARKET_CLOSE') {
+        setTimeout(() => {
+          currentMarketSession = null;
+          console.log('Market session reset for next trading day');
+        }, 5 * 60 * 1000); // Reset 5 minutes after market close
+      }
+    }
+
+    // Log status every hour during market hours
+    if (estDate.getMinutes() === 0 && 
+        estDate.getHours() >= 9 && 
+        estDate.getHours() <= 16) {
+      console.log(`Market calculator active - ${timeStr}`);
+    }
+  } catch (error) {
+    console.error('Error in market calculations scheduler:', error);
+  }
+}
+
+// Start the scheduler
+const schedulerInterval = setInterval(scheduleMarketCalculations, CALCULATION_INTERVAL);
+
+// Run immediately on startup
+scheduleMarketCalculations().catch(error => {
+  console.error('Error during initial market calculations:', error);
+});
+
+// Cleanup on process exit
+process.on('SIGTERM', () => {
+  clearInterval(schedulerInterval);
+});
 
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
 const RATE_LIMIT_DELAY = 12000; // 12 seconds between requests
@@ -141,39 +352,70 @@ export async function updateStockPrices() {
 
 export async function calculateAccuracy() {
   const now = new Date();
+  const estDate = utcToZonedTime(now, EST_TIMEZONE);
+  
+  // Only process predictions that match the current market time
+  const isMarketOpen = estDate.getHours() === 9 && estDate.getMinutes() === 30;
+  const isMarketClose = estDate.getHours() === 16 && estDate.getMinutes() === 0;
+
   const pendingPredictions = await db
     .select()
     .from(predictions)
     .where(
       and(
         sql`${predictions.actualPrice} is null`,
-        lte(predictions.targetTime, now)
+        sql`date_trunc('minute', ${predictions.targetTime}) = date_trunc('minute', ${sql.raw('current_timestamp')})`,
+        sql`extract(hour from ${predictions.targetTime}) = ${isMarketOpen ? 9 : 16}`,
+        sql`extract(minute from ${predictions.targetTime}) = ${isMarketOpen ? 30 : 0}`
       )
     );
 
+  console.log(`Processing ${pendingPredictions.length} predictions for ${isMarketOpen ? 'market open' : 'market close'}`);
+
   for (const prediction of pendingPredictions) {
-    const [latestPrice] = await db
-      .select()
-      .from(stockData)
-      .where(eq(stockData.symbol, prediction.symbol))
-      .orderBy(stockData.timestamp);
+    try {
+      // Get the latest price for the stock
+      const [latestPrice] = await db
+        .select()
+        .from(stockData)
+        .where(eq(stockData.symbol, prediction.symbol))
+        .orderBy(desc(stockData.timestamp))
+        .limit(1);
 
-    if (latestPrice) {
-      const accuracy = 100 - Math.abs(
-        ((Number(latestPrice.price) - Number(prediction.predictedPrice)) / Number(latestPrice.price)) * 100
-      );
+      if (latestPrice) {
+        const predictedPrice = Number(prediction.predictedPrice);
+        const actualPrice = Number(latestPrice.price);
+        
+        // Calculate accuracy (100% minus the percentage difference)
+        const accuracy = 100 - Math.abs(
+          ((actualPrice - predictedPrice) / actualPrice) * 100
+        );
 
-      await db
-        .update(predictions)
-        .set({
-          actualPrice: latestPrice.price.toString(),
-          accuracy: accuracy.toString(),
-        })
-        .where(eq(predictions.id, prediction.id));
+        // Clamp accuracy between 0 and 100
+        const clampedAccuracy = Math.max(0, Math.min(100, accuracy));
+
+        await db
+          .update(predictions)
+          .set({
+            actualPrice: latestPrice.price.toString(),
+            accuracy: clampedAccuracy.toFixed(2),
+          })
+          .where(eq(predictions.id, prediction.id));
+
+        console.log(`Updated prediction ${prediction.id} for ${prediction.symbol}: Accuracy ${clampedAccuracy.toFixed(2)}%`);
+      } else {
+        console.warn(`No price data available for ${prediction.symbol} at ${estDate.toISOString()}`);
+      }
+    } catch (error) {
+      console.error(`Error processing prediction ${prediction.id}:`, error);
     }
   }
 
-  await updateRankings();
+  // Only update rankings at market close
+  if (isMarketClose) {
+    console.log('Market close - updating rankings...');
+    await updateRankings();
+  }
 }
 
 async function updateRankings() {
@@ -184,40 +426,52 @@ async function updateRankings() {
     { name: 'yearly', startDate: subYears(new Date(), 1) },
   ] as const;
 
-  for (const timeFrame of timeFrames) {
-    const userStats = await db
-      .select({
-        userId: predictions.userId,
-        avgAccuracy: sql<number>`avg(${predictions.accuracy})`,
-        count: sql<number>`count(${predictions.id})`,
-      })
-      .from(predictions)
-      .where(
-        and(
-          gte(predictions.createdAt, timeFrame.startDate),
-          sql`${predictions.accuracy} is not null`
-        )
-      )
-      .groupBy(predictions.userId);
+  // Get all unique symbols from predictions
+  const uniqueSymbols = await db
+    .select({ symbol: predictions.symbol })
+    .from(predictions)
+    .groupBy(predictions.symbol);
 
-    for (const stat of userStats) {
-      await db
-        .insert(rankings)
-        .values({
-          userId: stat.userId,
-          timeFrame: timeFrame.name,
-          averageAccuracy: stat.avgAccuracy?.toString() ?? '0',
-          totalPredictions: Number(stat.count),
-          updatedAt: new Date(),
+  for (const timeFrame of timeFrames) {
+    for (const { symbol } of uniqueSymbols) {
+      const userStats = await db
+        .select({
+          userId: predictions.userId,
+          avgAccuracy: sql<number>`avg(${predictions.accuracy})`,
+          count: sql<number>`count(${predictions.id})`,
         })
-        .onConflictDoUpdate({
-          target: [rankings.userId, rankings.timeFrame],
-          set: {
+        .from(predictions)
+        .where(
+          and(
+            gte(predictions.createdAt, timeFrame.startDate),
+            eq(predictions.symbol, symbol),
+            sql`${predictions.accuracy} is not null`
+          )
+        )
+        .groupBy(predictions.userId);
+
+      for (const stat of userStats) {
+        await db
+          .insert(rankings)
+          .values({
+            userId: stat.userId,
+            symbol: symbol,
+            timeFrame: timeFrame.name,
             averageAccuracy: stat.avgAccuracy?.toString() ?? '0',
             totalPredictions: Number(stat.count),
             updatedAt: new Date(),
-          },
-        });
+          })
+          .onConflictDoUpdate({
+            target: [rankings.userId, rankings.timeFrame, rankings.symbol],
+            set: {
+              averageAccuracy: stat.avgAccuracy?.toString() ?? '0',
+              totalPredictions: Number(stat.count),
+              updatedAt: new Date(),
+            },
+          });
+      }
+
+      console.log(`Updated ${timeFrame.name} rankings for ${symbol}`);
     }
   }
 }

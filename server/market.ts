@@ -5,13 +5,43 @@ import { subDays, subMonths, subYears, startOfDay } from "date-fns";
 
 const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'demo';
 
+const RATE_LIMIT_DELAY = 12000; // 12 seconds between requests (5 requests per minute)
+let lastRequestTime = 0;
+
 export async function fetchStockPrice(symbol: string): Promise<number | null> {
   try {
+    // Implement rate limiting
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+    if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
+      await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY - timeSinceLastRequest));
+    }
+    lastRequestTime = Date.now();
+
     const response = await fetch(
       `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_API_KEY}`
     );
+    
+    if (!response.ok) {
+      console.error('API response not ok:', response.status, response.statusText);
+      return null;
+    }
+
     const data = await response.json();
-    return parseFloat(data['Global Quote']['05. price']);
+    
+    // Validate response structure
+    if (!data || !data['Global Quote'] || !data['Global Quote']['05. price']) {
+      console.error('Invalid API response format:', data);
+      return null;
+    }
+
+    const price = parseFloat(data['Global Quote']['05. price']);
+    if (isNaN(price)) {
+      console.error('Invalid price value:', data['Global Quote']['05. price']);
+      return null;
+    }
+
+    return price;
   } catch (error) {
     console.error('Error fetching stock price:', error);
     return null;
@@ -87,8 +117,8 @@ async function updateRankings() {
     const userStats = await db
       .select({
         userId: predictions.userId,
-        avgAccuracy: predictions.accuracy,
-        count: predictions.id,
+        avgAccuracy: db.fn.avg<number>(predictions.accuracy),
+        count: db.fn.count(predictions.id),
       })
       .from(predictions)
       .where(
@@ -105,8 +135,8 @@ async function updateRankings() {
         .values({
           userId: stat.userId,
           timeFrame: timeFrame.name as any,
-          averageAccuracy: stat.avgAccuracy,
-          totalPredictions: stat.count,
+          averageAccuracy: stat.avgAccuracy ?? 0,
+          totalPredictions: Number(stat.count),
         })
         .onConflictDoUpdate({
           target: [rankings.userId, rankings.timeFrame],

@@ -9,6 +9,11 @@ let lastRequestTime = 0;
 
 export async function fetchStockPrice(symbol: string): Promise<number | null> {
   try {
+    // Validate API key
+    if (!POLYGON_API_KEY) {
+      throw new Error('Polygon API key is not configured');
+    }
+
     // Implement rate limiting
     const now = Date.now();
     const timeSinceLastRequest = now - lastRequestTime;
@@ -17,19 +22,32 @@ export async function fetchStockPrice(symbol: string): Promise<number | null> {
     }
     lastRequestTime = Date.now();
 
+    // Make API request
     const response = await fetch(
       `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
     );
     
     if (!response.ok) {
-      console.error('Polygon API response not ok:', response.status, response.statusText);
+      const errorText = await response.text();
+      console.error('Polygon API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded');
+      }
       return null;
     }
 
     const data = await response.json();
     
-    if (!data || !data.results || !Array.isArray(data.results) || data.results.length === 0) {
-      console.error('Invalid Polygon API response format:', data);
+    // Validate response data
+    if (!data.results?.[0]?.c) {
+      console.error('Invalid or empty Polygon API response:', {
+        status: data.status,
+        message: data.message || 'No price data available'
+      });
       return null;
     }
 

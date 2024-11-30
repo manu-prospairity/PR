@@ -72,16 +72,37 @@ export function StockChart({ symbol }: StockChartProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Loading...</CardTitle>
+          <CardTitle>
+            {symbol} Price Chart
+            <span className="ml-2 text-sm font-normal">Loading...</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="h-[300px]">
-          <Skeleton className="h-full w-full" />
+        <CardContent className="h-[300px] flex items-center justify-center">
+          <div className="space-y-4 w-full">
+            <Skeleton className="h-8 w-3/4 mx-auto" />
+            <Skeleton className="h-[200px] w-full" />
+            <Skeleton className="h-8 w-1/2 mx-auto" />
+          </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (!data) return null;
+  if (!data || (!data.currentPrice && !data.historicalPrices.length)) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{symbol} Price Chart</CardTitle>
+        </CardHeader>
+        <CardContent className="h-[300px] flex items-center justify-center">
+          <p className="text-muted-foreground text-center">
+            No price data available for {symbol}.<br />
+            Please try again later.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const chartData = [
     ...data.historicalPrices.map(price => ({

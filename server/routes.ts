@@ -52,13 +52,13 @@ export function registerRoutes(app: Express) {
   app.get("/api/stocks/:symbol", async (req, res) => {
     const { symbol } = req.params;
     try {
-      const [latestPrice] = await db
-        .select()
-        .from(stockData)
-        .where(eq(stockData.symbol, symbol))
-        .orderBy(stockData.timestamp);
-      res.json({ symbol, price: latestPrice?.price || "0" });
+      const price = await fetchStockPrice(symbol);
+      if (price === null) {
+        return res.status(404).send("Stock price not found");
+      }
+      res.json({ symbol, price });
     } catch (error) {
+      console.error('Error in /api/stocks/:symbol:', error);
       res.status(500).send("Error fetching stock data");
     }
   });

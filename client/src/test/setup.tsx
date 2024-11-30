@@ -1,12 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
-import '@testing-library/jest-dom';
-import { expect, afterEach } from 'vitest';
+import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import matchers from '@testing-library/jest-dom/matchers';
+import { expect, vi } from 'vitest';
+import '@testing-library/jest-dom';
 
-// Extend Vitest's expect with jest-dom matchers
-expect.extend(matchers);
+// Set up global mocks
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: vi.fn()
+  })
+}));
 
 // Clean up after each test
 afterEach(() => {

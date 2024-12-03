@@ -4,6 +4,8 @@ import { fetchStockPrice, getHistoricalPrices } from "./market";
 import { db } from "../db";
 import { predictions, stockData, rankings } from "@db/schema";
 import { and, eq, gt, desc } from "drizzle-orm";
+import type { Request, Response } from 'express';
+import type { User } from '@db/schema';
 
 export function registerRoutes(app: Express) {
   setupAuth(app);
@@ -122,7 +124,10 @@ export function registerRoutes(app: Express) {
     const { symbol } = req.params;
     
     try {
-      const historicalData = await getHistoricalPrices(symbol);
+      const toDate = new Date();
+      const fromDate = new Date();
+      fromDate.setMonth(fromDate.getMonth() - 1); // Get 1 month of historical data
+      const historicalData = await getHistoricalPrices(symbol, fromDate, toDate);
       if (!historicalData) {
         return res.status(404).send("Historical data not found");
       }

@@ -1,167 +1,128 @@
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { AVAILABLE_STOCKS } from "../lib/constants";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { usePredictions } from "../hooks/use-predictions";
-import { addDays, setHours, setMinutes, isBefore, isWeekend, format } from "date-fns";
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Plus } from 'lucide-react';
 
-const predictionSchema = z.object({
-  symbol: z.string().min(1).toUpperCase(),
-  predictedPrice: z.number().positive(),
-  targetTime: z.string().refine((time) => ['9:30', '16:00'].includes(time), {
-    message: "Time must be either 9:30 AM or 4:00 PM EST",
-  }),
-});
-
-type PredictionFormValues = z.infer<typeof predictionSchema>;
-
-function getNextTradingDay(date = new Date()) {
-  let nextDay = date;
-  
-  // If it's after 4 PM, start with tomorrow
-  if (date.getHours() >= 16) {
-    nextDay = addDays(date, 1);
-  }
-  
-  // Skip weekends
-  while (isWeekend(nextDay)) {
-    nextDay = addDays(nextDay, 1);
-  }
-  
-  return nextDay;
-}
-
-function createTargetDateTime(date: Date, timeStr: string): Date {
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  const targetDate = setMinutes(setHours(date, hours), minutes);
-  return targetDate;
-}
+type NewPrediction = {
+  symbol: string;
+  predictedPrice: string;
+  targetTime: string;
+};
 
 export function PredictionForm() {
-  const { submitPrediction } = usePredictions();
-  const nextTradingDay = getNextTradingDay();
+  const [isOpen, setIsOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  const form = useForm<PredictionFormValues>({
-    defaultValues: {
-      symbol: "AAPL",  // Set AAPL as default
-      predictedPrice: 0,
-      targetTime: "",
+  const { mutate: createPrediction, isPending } = useMutation({
+    mutationFn: async (prediction: NewPrediction) => {
+      const response = await fetch('/api/predictions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(prediction),
+      });
+      if (!response.ok) throw new Error('Failed to create prediction');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['predictions'] });
+      setIsOpen(false);
     },
   });
 
-  const onSubmit = async (values: PredictionFormValues) => {
-    const targetDateTime = createTargetDateTime(nextTradingDay, values.targetTime);
-    
-    if (isBefore(targetDateTime, new Date())) {
-      form.setError("targetTime", {
-        message: "Target time must be in the future",
-      });
-      return;
-    }
-
-    await submitPrediction({
-      ...values,
-      predictedPrice: Number(values.predictedPrice),
-      targetTime: targetDateTime,
-    });
-    form.reset();
-  };
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+      >
+        <Plus className="w-4 h-4 mr-2" />
+        New Prediction
+      </button>
+    );
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Make a Prediction</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="symbol"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Stock Symbol</FormLabel>
-                  <FormControl>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select stock" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {AVAILABLE_STOCKS.map((stock) => (
-                          <SelectItem key={stock} value={stock}>
-                            {stock}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+      <h2 className="text-lg font-semibold mb-4">New Prediction</h2>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+          createPrediction({
+            symbol: formData.get('symbol') as string,
+            predictedPrice: formData.get('predictedPrice') as string,
+            targetTime: formData.get('targetTime') as string,
+          });
+        }}
+        className="space-y-4"
+      >
+        <div>
+          <label htmlFor="symbol" className="block text-sm font-medium text-gray-700">
+            Stock Symbol
+          </label>
+          <input
+            type="text"
+            name="symbol"
+            id="symbol"
+            required
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            placeholder="e.g. AAPL"
+          />
+        </div>
 
-            <FormField
-              control={form.control}
-              name="predictedPrice"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Predicted Price</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <div>
+          <label htmlFor="predictedPrice" className="block text-sm font-medium text-gray-700">
+            Predicted Price
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            name="predictedPrice"
+            id="predictedPrice"
+            required
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            placeholder="0.00"
+          />
+        </div>
 
-            <FormField
-              control={form.control}
-              name="targetTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Target Time (EST) for {format(nextTradingDay, "MMM d, yyyy")}
-                  </FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select time" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="9:30">9:30 AM EST (Market Open)</SelectItem>
-                      <SelectItem value="16:00">4:00 PM EST (Market Close)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <div>
+          <label htmlFor="targetTime" className="block text-sm font-medium text-gray-700">
+            Target Date
+          </label>
+          <input
+            type="date"
+            name="targetTime"
+            id="targetTime"
+            required
+            min={new Date().toISOString().split('T')[0]}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          />
+        </div>
 
-            <Button type="submit" className="w-full">
-              Submit Prediction
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+        <div className="flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Prediction'
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
